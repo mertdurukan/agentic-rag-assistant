@@ -1,0 +1,51 @@
+# --- Secrets (CRITICAL: real keys never go in the repo) ---
+.env
+.env.*
+!.env.example
+*.key
+secrets/
+credentials.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.python-version
+
+# --- ML / model artifacts ---
+models/
+*.pt
+*.bin
+*.safetensors
+.cache/
+.ragas_cache/
+wandb/
+
+# --- Data & indices (corpus not in repo, produced via ingestion) ---
+data/
+!data/.gitkeep
+chroma/
+qdrant_storage/
+*.sqlite3
+
+# --- Test / coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# --- Runtime / process logs ---
+*.log
+
+# --- IDE / OS ---
+.DS_Store
+.vscode/
+.idea/
+*.swp
