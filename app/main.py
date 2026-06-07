@@ -90,13 +90,49 @@ def ask(req: AskRequest) -> AskResponse:
 # --------------------------------------------------------------------------- #
 # Gradio UI
 # --------------------------------------------------------------------------- #
-def _ui_ask(question: str, mode: str) -> tuple[str, str]:
-    result = get_assistant().ask(question, mode=mode)  # type: ignore[arg-type]
+def _ui_ask(
+    question: str,
+    mode: str,
+    progress: gr.Progress = gr.Progress(track_tqdm=False),  # noqa: B008
+):
+    """Generator that yields intermediate UI states so the user sees progress
+    rather than a frozen button during the 5-60s pipeline run."""
+    if not question.strip():
+        yield "_Please enter a question._", ""
+        return
+
+    progress(0.05, desc="Initializing pipeline (cold start may take ~60s)...")
+    yield (
+        "⏳ _Initializing retrieval pipeline..._\n\n"
+        "First request after a cold start can take 30-60 seconds "
+        "(model loading + connection warmup). Subsequent requests are 5-15s.",
+        "",
+    )
+
+    assistant = get_assistant()
+
+    stage_desc = (
+        "vector + BM25 + RRF + cross-encoder rerank"
+        if mode == "hybrid"
+        else "vector only"
+    )
+    progress(0.30, desc=f"Retrieving relevant papers ({mode} mode)...")
+    yield (
+        f"⏳ _Retrieving relevant arXiv papers in **{mode}** mode "
+        f"({stage_desc})..._",
+        "",
+    )
+
+    result = assistant.ask(question, mode=mode)  # type: ignore[arg-type]
+
+    progress(0.95, desc="Formatting results...")
     sources_md = "\n".join(
         f"- **[{s['paper_id']}]** {s['title']} — {s['url']}" for s in result.sources
     ) or "_(no sources)_"
     badge = "✅ faithful" if result.faithful else "⚠️ not faithful"
-    return result.answer, f"**{badge}** · {sources_md}"
+
+    progress(1.0, desc="Done")
+    yield result.answer, f"**{badge}** · {sources_md}"
 
 
 def build_ui() -> gr.Blocks:
@@ -110,7 +146,12 @@ def build_ui() -> gr.Blocks:
         btn = gr.Button("Ask", variant="primary")
         answer = gr.Markdown(label="Answer")
         sources = gr.Markdown(label="Sources")
-        btn.click(_ui_ask, inputs=[q, mode], outputs=[answer, sources])
+        btn.click(
+            _ui_ask,
+            inputs=[q, mode],
+            outputs=[answer, sources],
+            show_progress="full",
+        )
     return ui
 
 

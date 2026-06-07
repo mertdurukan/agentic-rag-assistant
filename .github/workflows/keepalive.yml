@@ -1,0 +1,47 @@
+﻿name: Supabase Keepalive
+
+on:
+  schedule:
+    # Every Tuesday at 03:00 UTC — within free tier 7-day inactivity window
+    - cron: '0 3 * * 2'
+  workflow_dispatch:  # manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install psycopg
+        run: pip install "psycopg[binary]>=3.1"
+
+      - name: Ping Supabase
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          python -c "
+          import os, psycopg, sys
+          url = os.environ['DATABASE_URL']
+          # SQLAlchemy prefix yoksa kabul etmiyor psycopg.connect, strip et
+          url = url.replace('postgresql+psycopg://', 'postgresql://')
+          try:
+              with psycopg.connect(url, connect_timeout=10) as conn:
+                  with conn.cursor() as cur:
+                      cur.execute('SELECT 1, NOW();')
+                      result = cur.fetchone()
+                      print(f'OK: result={result}')
+          except Exception as e:
+              print(f'FAIL: {e}', file=sys.stderr)
+              sys.exit(1)
+          "
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "::warning::Supabase keepalive failed — project may have been paused or password rotated."
