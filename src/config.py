@@ -13,8 +13,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # env_ignore_empty: .env'de boş bırakılan anahtar ("KEY=") "ayarlanmamış"
+    # sayılır ve alanın varsayılanı kullanılır. Aksi halde pydantic'e "" olarak
+    # ulaşır; EVAL_LLM_PROVIDER gibi Literal alanlarda bu doğrulama hatası verip
+    # tüm uygulamayı (ingest dahil) açılışta düşürüyordu.
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        env_ignore_empty=True,
     )
 
     # --- LLM ---
